@@ -67,7 +67,9 @@ def crear_reporte():
 def eliminar_reporte(reporte_id):
     conn = connect_db()
     cur = conn.cursor()
-    cur.execute("SELECT usuario_id FROM reportes_exitosos WHERE id = %s;", (reporte_id,))
+    
+    # Obtener usuario_id y requisitoriado_id
+    cur.execute("SELECT usuario_id, requisitoriado_id FROM reportes_exitosos WHERE id = %s;", (reporte_id,))
     resultado = cur.fetchone()
 
     if not resultado:
@@ -75,15 +77,17 @@ def eliminar_reporte(reporte_id):
         conn.close()
         return jsonify({"exito": False, "error": "Reporte no encontrado"}), 404
 
-    usuario_id = resultado[0]
+    usuario_id, requisitoriado_id = resultado
 
+    # Eliminar el reporte
     cur.execute("DELETE FROM reportes_exitosos WHERE id = %s;", (reporte_id,))
     conn.commit()
     cur.close()
     conn.close()
 
-    enviar_notificacion(usuario_id, "reporte_eliminado", f"Has eliminado el reporte con ID {reporte_id}")
+    enviar_notificacion(usuario_id, "reporte_eliminado", f"Has eliminado el reporte del requisitoriado {requisitoriado_id}")
     return jsonify({"exito": True, "mensaje": "Reporte eliminado"})
+
 
 if __name__ != '__main__':
     # Producción (Gunicorn, etc.)
