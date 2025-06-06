@@ -9,7 +9,6 @@ DB_URL = "postgresql://requisitoriados_user:x0xLGMH3N71ZfUG9UX7rcBiujKiELzKY@dpg
 def connect_db():
     return psycopg2.connect(DB_URL, sslmode='require')
 
-# Crear tabla reportes si no existe
 def init_reportes_table():
     conn = connect_db()
     cur = conn.cursor()
@@ -119,6 +118,10 @@ def eliminar_reporte(reporte_id):
 
     return jsonify({"exito": True, "mensaje": "Reporte eliminado"})
 
-if __name__ == '__main__':
+if __name__ != '__main__':
+    # Producción (Gunicorn, etc.)
+    init_reportes_table()
+else:
+    # Desarrollo local
     init_reportes_table()
     app.run(debug=True)
