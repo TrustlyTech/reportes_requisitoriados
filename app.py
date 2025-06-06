@@ -5,7 +5,7 @@ import requests
 app = Flask(__name__)
 
 DB_URL = "postgresql://requisitoriados_user:x0xLGMH3N71ZfUG9UX7rcBiujKiELzKY@dpg-d114ho2li9vc738covqg-a.oregon-postgres.render.com/requisitoriados"
-NOTIFICACIONES_URL = "http://localhost:5001/notificaciones"  # Asegúrate de que este puerto sea correcto
+NOTIFICACIONES_URL = "https://notificaciones-identity.onrender.com"  # Asegúrate de que este puerto sea correcto
 
 def connect_db():
     return psycopg2.connect(DB_URL, sslmode='require')
