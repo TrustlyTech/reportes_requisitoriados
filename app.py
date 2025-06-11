@@ -148,7 +148,7 @@ def obtener_reportes_por_usuario(usuario_id):
     conn = connect_db()
     cur = conn.cursor()
     cur.execute("""
-        SELECT r.id, r.requisitoriado_id, req.nombre
+        SELECT r.id, r.requisitoriado_id, req.nombre, req.recompensa, req.imagen
         FROM reportes_exitosos r
         JOIN requisitoriados req ON r.requisitoriado_id = req.id
         WHERE r.usuario_id = %s;
@@ -157,13 +157,25 @@ def obtener_reportes_por_usuario(usuario_id):
     cur.close()
     conn.close()
 
+    reportes = []
+    for r in resultados:
+        imagen_binaria = r[4]
+        imagen_base64 = base64.b64encode(imagen_binaria).decode('utf-8') if imagen_binaria else ""
+        imagen_data_uri = f"data:image/png;base64,{imagen_base64}" if imagen_base64 else ""
+        
+        reportes.append({
+            "id": r[0],
+            "requisitoriado_id": r[1],
+            "nombre": r[2],
+            "recompensa": r[3],
+            "imagen": imagen_data_uri
+        })
+
     return jsonify({
         "exito": True,
-        "reportes": [
-            {"id": r[0], "requisitoriado_id": r[1], "nombre": r[2]}
-            for r in resultados
-        ]
+        "reportes": reportes
     })
+
 
 
 if __name__ != '__main__':
