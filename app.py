@@ -72,8 +72,7 @@ def get_requisitoriados():
             "id": row[0],
             "nombre": row[1],
             "recompensa": row[2],
-            "imagen": imagen_data_uri,
-            "azure_person_id": row[4]
+            "imagen": imagen_data_uri
         })
 
     total_paginas = (total_registros + limit - 1) // limit
@@ -88,7 +87,34 @@ def get_requisitoriados():
         "tiene_siguiente": page < total_paginas,
         "requisitoriados": lista
     })
-    
+
+@app.route('/requisitoriado_id_por_person', methods=['POST'])
+def obtener_id_por_person_id():
+    data = request.get_json()
+    person_id = data.get("personId")
+
+    if not person_id:
+        return jsonify({"exito": False, "error": "personId es requerido"}), 400
+
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id
+        FROM requisitoriados
+        WHERE azure_person_id = %s;
+    """, (person_id,))
+    resultado = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not resultado:
+        return jsonify({"exito": False, "error": "No se encontró requisitoriado con ese personId"}), 404
+
+    return jsonify({
+        "exito": True,
+        "id": resultado[0]
+    })
+
 @app.route('/reportes', methods=['POST'])
 def crear_reporte():
     data = request.get_json()
