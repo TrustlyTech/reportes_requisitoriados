@@ -37,14 +37,26 @@ def enviar_notificacion(usuario_id, tipo, mensaje):
 
 @app.route('/requisitoriados', methods=['GET'])
 def get_requisitoriados():
+    try:
+        page = max(int(request.args.get('page', 1)), 1)
+        limit = min(int(request.args.get('limit', 5)), 50)  # 5 por defecto, máximo 50
+    except ValueError:
+        return jsonify({"exito": False, "error": "Parámetros inválidos"}), 400
+
+    offset = (page - 1) * limit
+
     conn = connect_db()
     cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) FROM requisitoriados;")
+    total_registros = cur.fetchone()[0]
 
     cur.execute("""
         SELECT id, nombre, recompensa, imagen
         FROM requisitoriados
-        ORDER BY id;
-    """)
+        ORDER BY id
+        LIMIT %s OFFSET %s;
+    """, (limit, offset))
     rows = cur.fetchall()
 
     cur.close()
@@ -63,9 +75,16 @@ def get_requisitoriados():
             "imagen": imagen_data_uri
         })
 
+    total_paginas = (total_registros + limit - 1) // limit
+
     return jsonify({
         "exito": True,
-        "total": len(lista),
+        "pagina": page,
+        "por_pagina": limit,
+        "total_registros": total_registros,
+        "total_paginas": total_paginas,
+        "tiene_anterior": page > 1,
+        "tiene_siguiente": page < total_paginas,
         "requisitoriados": lista
     })
     
