@@ -72,7 +72,8 @@ def get_requisitoriados():
             "id": row[0],
             "nombre": row[1],
             "recompensa": row[2],
-            "imagen": imagen_data_uri
+            "imagen": imagen_data_uri,
+            "azure_person_id": row[4]
         })
 
     total_paginas = (total_registros + limit - 1) // limit
