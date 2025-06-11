@@ -34,6 +34,25 @@ def enviar_notificacion(usuario_id, tipo, mensaje):
     except Exception as e:
         print(f"Error al enviar notificación: {e}")
 
+@app.route('/requisitoriados', methods=['GET'])
+def get_requisitoriados():
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, nombre, recompensa, imagen FROM requisitoriados;")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    lista = []
+    for row in rows:
+        lista.append({
+            "id": row[0],
+            "nombre": row[1],
+            "recompensa": row[2],
+            "imagen": row[3]
+        })
+    return jsonify({"exito": True, "requisitoriados": lista})
+    
 @app.route('/reportes', methods=['POST'])
 def crear_reporte():
     data = request.get_json()
