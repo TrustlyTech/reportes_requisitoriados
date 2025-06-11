@@ -126,12 +126,20 @@ def crear_reporte():
 
     conn = connect_db()
     cur = conn.cursor()
+    
+    # Verificar si ya existe
     cur.execute("SELECT id FROM reportes_exitosos WHERE usuario_id = %s AND requisitoriado_id = %s;", (usuario_id, requisitoriado_id))
     if cur.fetchone():
         cur.close()
         conn.close()
         return jsonify({"exito": False, "error": "Reporte ya existe"}), 409
 
+    # Obtener nombre del requisitoriado
+    cur.execute("SELECT nombre FROM requisitoriados WHERE id = %s;", (requisitoriado_id,))
+    resultado = cur.fetchone()
+    nombre = resultado[0] if resultado else "desconocido"
+
+    # Insertar reporte
     cur.execute("""
         INSERT INTO reportes_exitosos (usuario_id, requisitoriado_id)
         VALUES (%s, %s) RETURNING id;
@@ -141,14 +149,15 @@ def crear_reporte():
     cur.close()
     conn.close()
 
-    enviar_notificacion(usuario_id, "reporte_exitoso", f"Has creado un reporte exitoso del requisitoriado {requisitoriado_id}")
+    enviar_notificacion(usuario_id, "reporte_exitoso", f"Has creado un reporte exitoso del requisitoriado {nombre}")
     return jsonify({"exito": True, "mensaje": "Reporte creado", "reporte_id": nuevo_id})
+
 
 @app.route('/reportes/<int:reporte_id>', methods=['DELETE'])
 def eliminar_reporte(reporte_id):
     conn = connect_db()
     cur = conn.cursor()
-    
+
     # Obtener usuario_id y requisitoriado_id
     cur.execute("SELECT usuario_id, requisitoriado_id FROM reportes_exitosos WHERE id = %s;", (reporte_id,))
     resultado = cur.fetchone()
@@ -160,14 +169,20 @@ def eliminar_reporte(reporte_id):
 
     usuario_id, requisitoriado_id = resultado
 
+    # Obtener nombre del requisitoriado
+    cur.execute("SELECT nombre FROM requisitoriados WHERE id = %s;", (requisitoriado_id,))
+    nombre_resultado = cur.fetchone()
+    nombre = nombre_resultado[0] if nombre_resultado else "desconocido"
+
     # Eliminar el reporte
     cur.execute("DELETE FROM reportes_exitosos WHERE id = %s;", (reporte_id,))
     conn.commit()
     cur.close()
     conn.close()
 
-    enviar_notificacion(usuario_id, "reporte_eliminado", f"Has eliminado el reporte del requisitoriado {requisitoriado_id}")
+    enviar_notificacion(usuario_id, "reporte_eliminado", f"Has eliminado el reporte del requisitoriado {nombre}")
     return jsonify({"exito": True, "mensaje": "Reporte eliminado"})
+
 
 @app.route('/reportes/<int:usuario_id>', methods=['GET'])
 def obtener_reportes_por_usuario(usuario_id):
