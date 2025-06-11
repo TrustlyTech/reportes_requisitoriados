@@ -36,10 +36,31 @@ def enviar_notificacion(usuario_id, tipo, mensaje):
 
 @app.route('/requisitoriados', methods=['GET'])
 def get_requisitoriados():
+    # Parámetros de paginación
+    try:
+        page = max(int(request.args.get('page', 1)), 1)
+        limit = min(int(request.args.get('limit', 5)), 50)  # 5 por defecto, máximo 50
+    except ValueError:
+        return jsonify({"exito": False, "error": "Parámetros inválidos"}), 400
+
+    offset = (page - 1) * limit
+
     conn = connect_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, nombre, recompensa, imagen FROM requisitoriados;")
+
+    # Total de registros
+    cur.execute("SELECT COUNT(*) FROM requisitoriados;")
+    total_registros = cur.fetchone()[0]
+
+    # Obtener los registros paginados
+    cur.execute("""
+        SELECT id, nombre, recompensa, imagen
+        FROM requisitoriados
+        ORDER BY id
+        LIMIT %s OFFSET %s;
+    """, (limit, offset))
     rows = cur.fetchall()
+
     cur.close()
     conn.close()
 
@@ -51,7 +72,20 @@ def get_requisitoriados():
             "recompensa": row[2],
             "imagen": row[3]
         })
-    return jsonify({"exito": True, "requisitoriados": lista})
+
+    total_paginas = (total_registros + limit - 1) // limit
+
+    return jsonify({
+        "exito": True,
+        "pagina": page,
+        "por_pagina": limit,
+        "total_registros": total_registros,
+        "total_paginas": total_paginas,
+        "tiene_anterior": page > 1,
+        "tiene_siguiente": page < total_paginas,
+        "requisitoriados": lista
+    })
+
     
 @app.route('/reportes', methods=['POST'])
 def crear_reporte():
