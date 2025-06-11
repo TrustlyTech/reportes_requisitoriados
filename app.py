@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import psycopg2
 import requests
+import base64
 
 app = Flask(__name__)
 
@@ -36,7 +37,6 @@ def enviar_notificacion(usuario_id, tipo, mensaje):
 
 @app.route('/requisitoriados', methods=['GET'])
 def get_requisitoriados():
-    # Parámetros de paginación
     try:
         page = max(int(request.args.get('page', 1)), 1)
         limit = min(int(request.args.get('limit', 5)), 50)  # 5 por defecto, máximo 50
@@ -48,11 +48,9 @@ def get_requisitoriados():
     conn = connect_db()
     cur = conn.cursor()
 
-    # Total de registros
     cur.execute("SELECT COUNT(*) FROM requisitoriados;")
     total_registros = cur.fetchone()[0]
 
-    # Obtener los registros paginados
     cur.execute("""
         SELECT id, nombre, recompensa, imagen
         FROM requisitoriados
@@ -66,11 +64,15 @@ def get_requisitoriados():
 
     lista = []
     for row in rows:
+        imagen_binaria = row[3]
+        imagen_base64 = base64.b64encode(imagen_binaria).decode('utf-8') if imagen_binaria else ""
+        imagen_data_uri = f"data:image/png;base64,{imagen_base64}" if imagen_base64 else ""
+
         lista.append({
             "id": row[0],
             "nombre": row[1],
             "recompensa": row[2],
-            "imagen": row[3]
+            "imagen": imagen_data_uri
         })
 
     total_paginas = (total_registros + limit - 1) // limit
@@ -85,7 +87,7 @@ def get_requisitoriados():
         "tiene_siguiente": page < total_paginas,
         "requisitoriados": lista
     })
-
+    
     
 @app.route('/reportes', methods=['POST'])
 def crear_reporte():
