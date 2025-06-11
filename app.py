@@ -107,6 +107,28 @@ def eliminar_reporte(reporte_id):
     enviar_notificacion(usuario_id, "reporte_eliminado", f"Has eliminado el reporte del requisitoriado {requisitoriado_id}")
     return jsonify({"exito": True, "mensaje": "Reporte eliminado"})
 
+@app.route('/reportes/<int:usuario_id>', methods=['GET'])
+def obtener_reportes_por_usuario(usuario_id):
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT r.id, r.requisitoriado_id, req.nombre
+        FROM reportes_exitosos r
+        JOIN requisitoriados req ON r.requisitoriado_id = req.id
+        WHERE r.usuario_id = %s;
+    """, (usuario_id,))
+    resultados = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        "exito": True,
+        "reportes": [
+            {"id": r[0], "requisitoriado_id": r[1], "nombre": r[2]}
+            for r in resultados
+        ]
+    })
+
 
 if __name__ != '__main__':
     # Producción (Gunicorn, etc.)
