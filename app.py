@@ -6,7 +6,7 @@ import base64
 app = Flask(__name__)
 
 DB_URL = "postgresql://requisitoriados_user:x0xLGMH3N71ZfUG9UX7rcBiujKiELzKY@dpg-d114ho2li9vc738covqg-a.oregon-postgres.render.com/requisitoriados"
-NOTIFICACIONES_URL = "https://notificaciones-identity.onrender.com/notificaciones"  # Asegúrate de que este puerto sea correcto
+NOTIFICACIONES_URL = "https://notificaciones-identity.onrender.com/notificaciones"
 
 def connect_db():
     return psycopg2.connect(DB_URL, sslmode='require')
@@ -14,6 +14,8 @@ def connect_db():
 def init_reportes_table():
     conn = connect_db()
     cur = conn.cursor()
+
+    # Tabla de reportes exitosos
     cur.execute("""
         CREATE TABLE IF NOT EXISTS reportes_exitosos (
             id SERIAL PRIMARY KEY,
@@ -21,6 +23,17 @@ def init_reportes_table():
             requisitoriado_id INTEGER NOT NULL
         );
     """)
+
+    # Tabla de denuncias exitosas
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS denuncias_exitosas (
+            id SERIAL PRIMARY KEY,
+            usuario_id INTEGER NOT NULL,
+            requisitoriado_id INTEGER NOT NULL,
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
@@ -39,7 +52,7 @@ def enviar_notificacion(usuario_id, tipo, mensaje):
 def get_requisitoriados():
     try:
         page = max(int(request.args.get('page', 1)), 1)
-        limit = min(int(request.args.get('limit', 5)), 50)  # 5 por defecto, máximo 50
+        limit = min(int(request.args.get('limit', 5)), 50)
     except ValueError:
         return jsonify({"exito": False, "error": "Parámetros inválidos"}), 400
 
@@ -126,20 +139,17 @@ def crear_reporte():
 
     conn = connect_db()
     cur = conn.cursor()
-    
-    # Verificar si ya existe
+
     cur.execute("SELECT id FROM reportes_exitosos WHERE usuario_id = %s AND requisitoriado_id = %s;", (usuario_id, requisitoriado_id))
     if cur.fetchone():
         cur.close()
         conn.close()
         return jsonify({"exito": False, "error": "Reporte ya existe"}), 409
 
-    # Obtener nombre del requisitoriado
     cur.execute("SELECT nombre FROM requisitoriados WHERE id = %s;", (requisitoriado_id,))
     resultado = cur.fetchone()
     nombre = resultado[0] if resultado else "desconocido"
 
-    # Insertar reporte
     cur.execute("""
         INSERT INTO reportes_exitosos (usuario_id, requisitoriado_id)
         VALUES (%s, %s) RETURNING id;
@@ -152,13 +162,39 @@ def crear_reporte():
     enviar_notificacion(usuario_id, "reporte_exitoso", f"Has creado un reporte exitoso del requisitoriado {nombre}")
     return jsonify({"exito": True, "mensaje": "Reporte creado", "reporte_id": nuevo_id})
 
+@app.route('/denuncias', methods=['POST'])
+def crear_denuncia():
+    data = request.get_json()
+    usuario_id = data.get('usuario_id')
+    requisitoriado_id = data.get('requisitoriado_id')
+
+    if not usuario_id or not requisitoriado_id:
+        return jsonify({"exito": False, "error": "usuario_id y requisitoriado_id son requeridos"}), 400
+
+    conn = connect_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT nombre FROM requisitoriados WHERE id = %s;", (requisitoriado_id,))
+    resultado = cur.fetchone()
+    nombre = resultado[0] if resultado else "desconocido"
+
+    cur.execute("""
+        INSERT INTO denuncias_exitosas (usuario_id, requisitoriado_id)
+        VALUES (%s, %s) RETURNING id;
+    """, (usuario_id, requisitoriado_id))
+    nuevo_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    enviar_notificacion(usuario_id, "denuncia_exitosa", f"Has denunciado exitosamente al requisitoriado {nombre}")
+    return jsonify({"exito": True, "mensaje": "Denuncia creada", "denuncia_id": nuevo_id})
 
 @app.route('/reportes/<int:reporte_id>', methods=['DELETE'])
 def eliminar_reporte(reporte_id):
     conn = connect_db()
     cur = conn.cursor()
 
-    # Obtener usuario_id y requisitoriado_id
     cur.execute("SELECT usuario_id, requisitoriado_id FROM reportes_exitosos WHERE id = %s;", (reporte_id,))
     resultado = cur.fetchone()
 
@@ -169,12 +205,10 @@ def eliminar_reporte(reporte_id):
 
     usuario_id, requisitoriado_id = resultado
 
-    # Obtener nombre del requisitoriado
     cur.execute("SELECT nombre FROM requisitoriados WHERE id = %s;", (requisitoriado_id,))
     nombre_resultado = cur.fetchone()
     nombre = nombre_resultado[0] if nombre_resultado else "desconocido"
 
-    # Eliminar el reporte
     cur.execute("DELETE FROM reportes_exitosos WHERE id = %s;", (reporte_id,))
     conn.commit()
     cur.close()
@@ -182,7 +216,6 @@ def eliminar_reporte(reporte_id):
 
     enviar_notificacion(usuario_id, "reporte_eliminado", f"Has eliminado el reporte del requisitoriado {nombre}")
     return jsonify({"exito": True, "mensaje": "Reporte eliminado"})
-
 
 @app.route('/reportes/<int:usuario_id>', methods=['GET'])
 def obtener_reportes_por_usuario(usuario_id):
@@ -218,11 +251,8 @@ def obtener_reportes_por_usuario(usuario_id):
     })
 
 
-
 if __name__ != '__main__':
-    # Producción (Gunicorn, etc.)
     init_reportes_table()
 else:
-    # Desarrollo local
     init_reportes_table()
     app.run(debug=True)
