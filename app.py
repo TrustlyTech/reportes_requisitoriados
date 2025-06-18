@@ -53,6 +53,7 @@ def get_requisitoriados():
     try:
         page = max(int(request.args.get('page', 1)), 1)
         limit = min(int(request.args.get('limit', 5)), 50)
+        nombre_filtro = request.args.get('nombre', '').strip()
     except ValueError:
         return jsonify({"exito": False, "error": "Parámetros inválidos"}), 400
 
@@ -61,15 +62,26 @@ def get_requisitoriados():
     conn = connect_db()
     cur = conn.cursor()
 
-    cur.execute("SELECT COUNT(*) FROM requisitoriados;")
+    params = []
+    filtro_sql = ""
+
+    if nombre_filtro:
+        filtro_sql = "WHERE nombre ILIKE %s"
+        params.append(f"%{nombre_filtro}%")
+
+    # Conteo total con filtro
+    cur.execute(f"SELECT COUNT(*) FROM requisitoriados {filtro_sql};", params)
     total_registros = cur.fetchone()[0]
 
-    cur.execute("""
+    # Consulta de datos con filtro + paginación
+    params.extend([limit, offset])
+    cur.execute(f"""
         SELECT id, nombre, recompensa, imagen
         FROM requisitoriados
+        {filtro_sql}
         ORDER BY id
         LIMIT %s OFFSET %s;
-    """, (limit, offset))
+    """, params)
     rows = cur.fetchall()
 
     cur.close()
