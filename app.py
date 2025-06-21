@@ -51,12 +51,13 @@ def init_auditoria_tabla():
             fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             ciudad TEXT,
             pais TEXT,
-            requisitoriado_id INTEGER
+            requisitoriado_nombre TEXT
         );
     """)
     conn.commit()
     cur.close()
     conn.close()
+
 
 def enviar_notificacion(usuario_id, tipo, mensaje):
     try:
