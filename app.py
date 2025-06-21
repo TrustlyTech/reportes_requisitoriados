@@ -186,21 +186,37 @@ def crear_denuncia():
     conn = connect_db()
     cur = conn.cursor()
 
+    # Obtener nombre del requisitoriado
     cur.execute("SELECT nombre FROM requisitoriados WHERE id = %s;", (requisitoriado_id,))
     resultado = cur.fetchone()
     nombre = resultado[0] if resultado else "desconocido"
 
+    # Insertar denuncia
     cur.execute("""
         INSERT INTO denuncias_exitosas (usuario_id, requisitoriado_id)
         VALUES (%s, %s) RETURNING id;
     """, (usuario_id, requisitoriado_id))
     nuevo_id = cur.fetchone()[0]
+
+    # Obtener ciudad y país del usuario que denuncia
+    cur.execute("SELECT ciudad, pais FROM usuario WHERE id = %s;", (usuario_id,))
+    user_info = cur.fetchone()
+    ciudad = user_info[0] if user_info else "desconocida"
+    pais = user_info[1] if user_info else "desconocido"
+
+    # Registrar en la tabla de auditoría
+    cur.execute("""
+        INSERT INTO auditoria_denuncias (ciudad, pais, requisitoriado_id)
+        VALUES (%s, %s, %s);
+    """, (ciudad, pais, requisitoriado_id))
+
     conn.commit()
     cur.close()
     conn.close()
 
     enviar_notificacion(usuario_id, "denuncia_exitosa", f"Has denunciado exitosamente al requisitoriado {nombre}")
     return jsonify({"exito": True, "mensaje": "Denuncia creada", "denuncia_id": nuevo_id})
+
 
 @app.route('/reportes/<int:reporte_id>', methods=['DELETE'])
 def eliminar_reporte(reporte_id):
