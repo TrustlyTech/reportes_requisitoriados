@@ -11,6 +11,23 @@ NOTIFICACIONES_URL = "https://notificaciones-identity.onrender.com/notificacione
 def connect_db():
     return psycopg2.connect(DB_URL, sslmode='require')
 
+def init_auditoria_tabla():
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS auditoria_denuncias (
+            id SERIAL PRIMARY KEY,
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ciudad TEXT,
+            pais TEXT,
+            requisitoriado_id INTEGER
+        );
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 def init_reportes_table():
     conn = connect_db()
     cur = conn.cursor()
